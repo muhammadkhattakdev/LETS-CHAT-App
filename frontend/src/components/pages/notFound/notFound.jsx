@@ -1,108 +1,158 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft, MessageCircle, Search } from 'lucide-react';
+import { Home, MessageCircle, ArrowLeft, Search } from 'lucide-react';
 import PrimaryButton from '../../commonComponents/primaryButton/primaryButton';
+import { useAuth } from '../../commonComponents/authContext/authContext';
 import './style.css';
 
 const NotFound = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
-  const handleGoBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
+  const handleGoHome = () => {
+    if (isAuthenticated) {
       navigate('/chat');
+    } else {
+      navigate('/login');
     }
   };
 
-  const handleGoHome = () => {
-    navigate('/chat');
+  const handleGoBack = () => {
+    navigate(-1);
   };
 
   return (
-    <div className="not-found-page">
-      <div className="not-found-container">
+    <div className="notfound-page">
+      <div className="notfound-container">
         {/* Animated 404 */}
-        <div className="not-found-animation">
-          <div className="not-found-number">4</div>
-          <div className="not-found-icon">
-            <MessageCircle size={120} />
+        <div className="notfound-animation">
+          <div className="notfound-number">
+            <span className="notfound-digit">4</span>
+            <div className="notfound-emoji">
+              <MessageCircle size={120} />
+            </div>
+            <span className="notfound-digit">4</span>
           </div>
-          <div className="not-found-number">4</div>
         </div>
 
         {/* Content */}
-        <div className="not-found-content">
-          <h1 className="not-found-title">Page Not Found</h1>
-          <p className="not-found-description">
-            Oops! The page you're looking for doesn't exist. It might have been moved, 
+        <div className="notfound-content">
+          <h1 className="notfound-title">Oops! Page not found</h1>
+          <p className="notfound-description">
+            The page you're looking for doesn't exist. It might have been moved, 
             deleted, or you entered the wrong URL.
           </p>
 
+          {/* Error Details */}
+          <div className="notfound-details">
+            <div className="notfound-detail">
+              <span className="notfound-detail__label">Error Code:</span>
+              <span className="notfound-detail__value">404</span>
+            </div>
+            <div className="notfound-detail">
+              <span className="notfound-detail__label">Requested URL:</span>
+              <span className="notfound-detail__value">{window.location.pathname}</span>
+            </div>
+          </div>
+
           {/* Action Buttons */}
-          <div className="not-found-actions">
+          <div className="notfound-actions">
             <PrimaryButton
               variant="primary"
               size="large"
-              icon={<Home size={20} />}
               onClick={handleGoHome}
+              icon={isAuthenticated ? <MessageCircle size={20} /> : <Home size={20} />}
             >
-              Go to Chat
+              {isAuthenticated ? 'Go to Chat' : 'Go to Home'}
             </PrimaryButton>
-            
+
             <PrimaryButton
               variant="outline"
               size="large"
-              icon={<ArrowLeft size={20} />}
               onClick={handleGoBack}
+              icon={<ArrowLeft size={20} />}
             >
               Go Back
             </PrimaryButton>
           </div>
 
-          {/* Help Section */}
-          <div className="not-found-help">
-            <h3 className="not-found-help-title">What you can do:</h3>
-            <div className="not-found-help-list">
-              <div className="help-item">
-                <div className="help-item-icon">
-                  <Home size={20} />
-                </div>
-                <div className="help-item-content">
-                  <h4>Return to Dashboard</h4>
-                  <p>Go back to your main chat interface</p>
-                </div>
-              </div>
-              
-              <div className="help-item">
-                <div className="help-item-icon">
-                  <Search size={20} />
-                </div>
-                <div className="help-item-content">
-                  <h4>Search for Chats</h4>
-                  <p>Use the search feature to find conversations</p>
-                </div>
-              </div>
-              
-              <div className="help-item">
-                <div className="help-item-icon">
-                  <MessageCircle size={20} />
-                </div>
-                <div className="help-item-content">
-                  <h4>Start New Chat</h4>
-                  <p>Create a new conversation with friends</p>
-                </div>
-              </div>
+          {/* Helpful Links */}
+          <div className="notfound-links">
+            <h3 className="notfound-links__title">Popular pages:</h3>
+            <div className="notfound-links__list">
+              {isAuthenticated ? (
+                <>
+                  <button 
+                    className="notfound-link"
+                    onClick={() => navigate('/chat')}
+                  >
+                    <MessageCircle size={16} />
+                    <span>Chat</span>
+                  </button>
+                  <button 
+                    className="notfound-link"
+                    onClick={() => navigate('/profile')}
+                  >
+                    <div className="notfound-link__icon">👤</div>
+                    <span>Profile</span>
+                  </button>
+                  <button 
+                    className="notfound-link"
+                    onClick={() => navigate('/settings')}
+                  >
+                    <div className="notfound-link__icon">⚙️</div>
+                    <span>Settings</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    className="notfound-link"
+                    onClick={() => navigate('/login')}
+                  >
+                    <div className="notfound-link__icon">🔑</div>
+                    <span>Login</span>
+                  </button>
+                  <button 
+                    className="notfound-link"
+                    onClick={() => navigate('/signup')}
+                  >
+                    <div className="notfound-link__icon">✨</div>
+                    <span>Sign Up</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Search Suggestion */}
+          <div className="notfound-search">
+            <div className="notfound-search__icon">
+              <Search size={24} />
+            </div>
+            <div className="notfound-search__content">
+              <h4>Looking for something specific?</h4>
+              <p>Try checking the URL for typos or navigate using the menu.</p>
             </div>
           </div>
         </div>
 
+        {/* Fun Facts */}
+        <div className="notfound-facts">
+          <h3 className="notfound-facts__title">Did you know?</h3>
+          <div className="notfound-fact">
+            <div className="notfound-fact__emoji">🌐</div>
+            <p>404 errors are named after room 404 at CERN where the original web server was located.</p>
+          </div>
+        </div>
+
         {/* Floating Elements */}
-        <div className="not-found-decorations">
-          <div className="decoration decoration-1"></div>
-          <div className="decoration decoration-2"></div>
-          <div className="decoration decoration-3"></div>
-          <div className="decoration decoration-4"></div>
+        <div className="notfound-decorations">
+          <div className="floating-icon floating-icon--1">💬</div>
+          <div className="floating-icon floating-icon--2">📱</div>
+          <div className="floating-icon floating-icon--3">🔍</div>
+          <div className="floating-icon floating-icon--4">⚡</div>
+          <div className="floating-icon floating-icon--5">🚀</div>
         </div>
       </div>
     </div>

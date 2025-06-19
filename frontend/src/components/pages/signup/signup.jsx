@@ -1,26 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, MessageCircle, Mail, Lock, User } from 'lucide-react';
+import { 
+  Eye, 
+  EyeOff, 
+  MessageCircle, 
+  Mail, 
+  Lock, 
+  User, 
+  AtSign,
+  CheckCircle,
+  X
+} from 'lucide-react';
 import { useAuth } from '../../commonComponents/authContext/authContext';
 import LoadingSpinner from '../../commonComponents/loadingSpinner/loadingSpinner';
 import './style.css';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { register: registerUser, loading, error, isAuthenticated, clearError } = useAuth();
+  const { register: authRegister, loading, error, isAuthenticated, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [step, setStep] = useState(1);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   const {
-    register,
+    register: formRegister,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch,
     clearErrors,
+    watch,
+    trigger
   } = useForm();
 
-  const password = watch('password');
+  const watchedPassword = watch('password');
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -35,19 +48,49 @@ const Signup = () => {
   }, [clearError]);
 
   const onSubmit = async (data) => {
-    clearError();
-    clearErrors();
+    if (step === 1) {
+      // Validate first step and move to next
+      const isValid = await trigger(['firstName', 'lastName', 'username']);
+      if (isValid) {
+        setStep(2);
+      }
+      return;
+    }
 
-    const result = await registerUser({
-      username: data.username,
-      email: data.email,
-      password: data.password,
-      firstName: data.firstName,
-      lastName: data.lastName,
-    });
+    if (step === 2) {
+      // Validate second step and move to next
+      const isValid = await trigger(['email', 'password', 'confirmPassword']);
+      if (isValid) {
+        setStep(3);
+      }
+      return;
+    }
 
-    if (result.success) {
-      navigate('/chat');
+    if (step === 3) {
+      if (!acceptedTerms) {
+        return;
+      }
+
+      clearError();
+      clearErrors();
+
+      const result = await authRegister({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        username: data.username,
+        email: data.email,
+        password: data.password,
+      });
+
+      if (result.success) {
+        navigate('/chat');
+      }
+    }
+  };
+
+  const goToPreviousStep = () => {
+    if (step > 1) {
+      setStep(step - 1);
     }
   };
 
@@ -59,6 +102,326 @@ const Signup = () => {
     setShowConfirmPassword(!showConfirmPassword);
   };
 
+  // Password strength checker
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: '', color: '' };
+    
+    let strength = 0;
+    const checks = {
+      length: password.length >= 8,
+      lowercase: /[a-z]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+
+    strength = Object.values(checks).filter(Boolean).length;
+
+    if (strength <= 2) return { strength, label: 'Weak', color: '#ef4444' };
+    if (strength <= 3) return { strength, label: 'Fair', color: '#f59e0b' };
+    if (strength <= 4) return { strength, label: 'Good', color: '#10b981' };
+    return { strength, label: 'Strong', color: '#059669' };
+  };
+
+  const passwordStrength = getPasswordStrength(watchedPassword);
+
+  const renderStep1 = () => (
+    <div className="signup-step">
+      <div className="signup-step__header">
+        <h2>Tell us about yourself</h2>
+        <p>Let's start with your basic information</p>
+      </div>
+
+      <div className="signup-form__content">
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="firstName" className="form-label">
+              First Name
+            </label>
+            <div className="form-input-container">
+              <User className="form-input-icon" size={20} />
+              <input
+                id="firstName"
+                type="text"
+                className={`form-input ${errors.firstName ? 'form-input--error' : ''}`}
+                placeholder="Enter your first name"
+                autoComplete="given-name"
+                {...formRegister('firstName', {
+                  required: 'First name is required',
+                  minLength: {
+                    value: 2,
+                    message: 'First name must be at least 2 characters',
+                  },
+                  pattern: {
+                    value: /^[A-Za-z\s]+$/,
+                    message: 'First name can only contain letters',
+                  },
+                })}
+              />
+            </div>
+            {errors.firstName && (
+              <span className="form-error">{errors.firstName.message}</span>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="lastName" className="form-label">
+              Last Name
+            </label>
+            <div className="form-input-container">
+              <User className="form-input-icon" size={20} />
+              <input
+                id="lastName"
+                type="text"
+                className={`form-input ${errors.lastName ? 'form-input--error' : ''}`}
+                placeholder="Enter your last name"
+                autoComplete="family-name"
+                {...formRegister('lastName', {
+                  required: 'Last name is required',
+                  minLength: {
+                    value: 2,
+                    message: 'Last name must be at least 2 characters',
+                  },
+                  pattern: {
+                    value: /^[A-Za-z\s]+$/,
+                    message: 'Last name can only contain letters',
+                  },
+                })}
+              />
+            </div>
+            {errors.lastName && (
+              <span className="form-error">{errors.lastName.message}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="username" className="form-label">
+            Username
+          </label>
+          <div className="form-input-container">
+            <AtSign className="form-input-icon" size={20} />
+            <input
+              id="username"
+              type="text"
+              className={`form-input ${errors.username ? 'form-input--error' : ''}`}
+              placeholder="Choose a unique username"
+              autoComplete="username"
+              {...formRegister('username', {
+                required: 'Username is required',
+                minLength: {
+                  value: 3,
+                  message: 'Username must be at least 3 characters',
+                },
+                pattern: {
+                  value: /^[a-zA-Z0-9_]+$/,
+                  message: 'Username can only contain letters, numbers, and underscores',
+                },
+              })}
+            />
+          </div>
+          {errors.username && (
+            <span className="form-error">{errors.username.message}</span>
+          )}
+          <span className="form-hint">
+            Username can only contain letters, numbers, and underscores
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="signup-step">
+      <div className="signup-step__header">
+        <h2>Account credentials</h2>
+        <p>Set up your email and password</p>
+      </div>
+
+      <div className="signup-form__content">
+        <div className="form-group">
+          <label htmlFor="email" className="form-label">
+            Email Address
+          </label>
+          <div className="form-input-container">
+            <Mail className="form-input-icon" size={20} />
+            <input
+              id="email"
+              type="email"
+              className={`form-input ${errors.email ? 'form-input--error' : ''}`}
+              placeholder="Enter your email address"
+              autoComplete="email"
+              {...formRegister('email', {
+                required: 'Email is required',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Please enter a valid email address',
+                },
+              })}
+            />
+          </div>
+          {errors.email && (
+            <span className="form-error">{errors.email.message}</span>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="password" className="form-label">
+            Password
+          </label>
+          <div className="form-input-container">
+            <Lock className="form-input-icon" size={20} />
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              className={`form-input ${errors.password ? 'form-input--error' : ''}`}
+              placeholder="Create a strong password"
+              autoComplete="new-password"
+              {...formRegister('password', {
+                required: 'Password is required',
+                minLength: {
+                  value: 8,
+                  message: 'Password must be at least 8 characters',
+                },
+              })}
+            />
+            <button
+              type="button"
+              className="form-input-action"
+              onClick={togglePasswordVisibility}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+          {errors.password && (
+            <span className="form-error">{errors.password.message}</span>
+          )}
+          
+          {/* Password Strength Indicator */}
+          {watchedPassword && (
+            <div className="password-strength">
+              <div className="password-strength__bar">
+                <div 
+                  className="password-strength__fill"
+                  style={{ 
+                    width: `${(passwordStrength.strength / 5) * 100}%`,
+                    backgroundColor: passwordStrength.color 
+                  }}
+                ></div>
+              </div>
+              <span 
+                className="password-strength__label"
+                style={{ color: passwordStrength.color }}
+              >
+                {passwordStrength.label}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="confirmPassword" className="form-label">
+            Confirm Password
+          </label>
+          <div className="form-input-container">
+            <Lock className="form-input-icon" size={20} />
+            <input
+              id="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              className={`form-input ${errors.confirmPassword ? 'form-input--error' : ''}`}
+              placeholder="Confirm your password"
+              autoComplete="new-password"
+              {...formRegister('confirmPassword', {
+                required: 'Please confirm your password',
+                validate: (value) => 
+                  value === watchedPassword || 'Passwords do not match',
+              })}
+            />
+            <button
+              type="button"
+              className="form-input-action"
+              onClick={toggleConfirmPasswordVisibility}
+              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <span className="form-error">{errors.confirmPassword.message}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="signup-step">
+      <div className="signup-step__header">
+        <h2>Terms and Privacy</h2>
+        <p>Review and accept our terms to continue</p>
+      </div>
+
+      <div className="signup-form__content">
+        {/* Account Summary */}
+        <div className="account-summary">
+          <h3>Account Summary</h3>
+          <div className="summary-items">
+            <div className="summary-item">
+              <span className="summary-label">Name:</span>
+              <span className="summary-value">{watch('firstName')} {watch('lastName')}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Username:</span>
+              <span className="summary-value">@{watch('username')}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Email:</span>
+              <span className="summary-value">{watch('email')}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Terms and Conditions */}
+        <div className="terms-section">
+          <div className="terms-content">
+            <h4>Terms of Service</h4>
+            <div className="terms-text">
+              <p>By creating an account, you agree to our Terms of Service and Privacy Policy. Here are the key points:</p>
+              <ul>
+                <li>You must be at least 13 years old to use this service</li>
+                <li>You are responsible for maintaining the security of your account</li>
+                <li>You agree not to use the service for illegal or harmful activities</li>
+                <li>We respect your privacy and will not share your personal information</li>
+                <li>You can delete your account at any time from the settings</li>
+              </ul>
+            </div>
+          </div>
+
+          <label className="terms-checkbox">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="terms-checkbox__input"
+            />
+            <span className="terms-checkbox__checkmark"></span>
+            <span className="terms-checkbox__label">
+              I agree to the{' '}
+              <Link to="/terms" target="_blank" className="terms-link">
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link to="/privacy" target="_blank" className="terms-link">
+                Privacy Policy
+              </Link>
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="signup-page">
       <div className="signup-container">
@@ -68,22 +431,30 @@ const Signup = () => {
             <div className="signup-branding__icon">
               <MessageCircle size={48} />
             </div>
-            <h1 className="signup-branding__title">Join Chat App Today</h1>
+            <h1 className="signup-branding__title">Join Chat App</h1>
             <p className="signup-branding__subtitle">
-              Create your account and start connecting with people around the world. Experience the future of communication.
+              Create your account and start connecting with friends and colleagues around the world.
             </p>
-            <div className="signup-branding__stats">
-              <div className="stat-item">
-                <div className="stat-item__number">10k+</div>
-                <div className="stat-item__label">Active Users</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-item__number">1M+</div>
-                <div className="stat-item__label">Messages Sent</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-item__number">99.9%</div>
-                <div className="stat-item__label">Uptime</div>
+            
+            {/* Progress Steps */}
+            <div className="signup-progress">
+              <div className="progress-steps">
+                <div className={`progress-step ${step >= 1 ? 'progress-step--active' : ''}`}>
+                  <div className="progress-step__number">
+                    {step > 1 ? <CheckCircle size={16} /> : '1'}
+                  </div>
+                  <span className="progress-step__label">Personal Info</span>
+                </div>
+                <div className={`progress-step ${step >= 2 ? 'progress-step--active' : ''}`}>
+                  <div className="progress-step__number">
+                    {step > 2 ? <CheckCircle size={16} /> : '2'}
+                  </div>
+                  <span className="progress-step__label">Credentials</span>
+                </div>
+                <div className={`progress-step ${step >= 3 ? 'progress-step--active' : ''}`}>
+                  <div className="progress-step__number">3</div>
+                  <span className="progress-step__label">Terms</span>
+                </div>
               </div>
             </div>
           </div>
@@ -93,9 +464,13 @@ const Signup = () => {
         <div className="signup-form-section">
           <div className="signup-form-container">
             <div className="signup-form-header">
-              <h2 className="signup-form-title">Create your account</h2>
+              <h2 className="signup-form-title">
+                Step {step} of 3
+              </h2>
               <p className="signup-form-subtitle">
-                Join thousands of users already chatting on our platform.
+                {step === 1 && "Let's get to know you better"}
+                {step === 2 && "Secure your account"}
+                {step === 3 && "Almost there!"}
               </p>
             </div>
 
@@ -108,235 +483,35 @@ const Signup = () => {
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="signup-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="firstName" className="form-label">
-                    First Name
-                  </label>
-                  <div className="form-input-container">
-                    <User className="form-input-icon" size={20} />
-                    <input
-                      id="firstName"
-                      type="text"
-                      className={`form-input ${errors.firstName ? 'form-input--error' : ''}`}
-                      placeholder="John"
-                      autoComplete="given-name"
-                      {...register('firstName', {
-                        required: 'First name is required',
-                        minLength: {
-                          value: 2,
-                          message: 'Must be at least 2 characters',
-                        },
-                        maxLength: {
-                          value: 50,
-                          message: 'Must be less than 50 characters',
-                        },
-                      })}
-                    />
-                  </div>
-                  {errors.firstName && (
-                    <span className="form-error">{errors.firstName.message}</span>
-                  )}
-                </div>
+              {step === 1 && renderStep1()}
+              {step === 2 && renderStep2()}
+              {step === 3 && renderStep3()}
 
-                <div className="form-group">
-                  <label htmlFor="lastName" className="form-label">
-                    Last Name
-                  </label>
-                  <div className="form-input-container">
-                    <User className="form-input-icon" size={20} />
-                    <input
-                      id="lastName"
-                      type="text"
-                      className={`form-input ${errors.lastName ? 'form-input--error' : ''}`}
-                      placeholder="Doe"
-                      autoComplete="family-name"
-                      {...register('lastName', {
-                        required: 'Last name is required',
-                        minLength: {
-                          value: 2,
-                          message: 'Must be at least 2 characters',
-                        },
-                        maxLength: {
-                          value: 50,
-                          message: 'Must be less than 50 characters',
-                        },
-                      })}
-                    />
-                  </div>
-                  {errors.lastName && (
-                    <span className="form-error">{errors.lastName.message}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="username" className="form-label">
-                  Username
-                </label>
-                <div className="form-input-container">
-                  <User className="form-input-icon" size={20} />
-                  <input
-                    id="username"
-                    type="text"
-                    className={`form-input ${errors.username ? 'form-input--error' : ''}`}
-                    placeholder="john_doe"
-                    autoComplete="username"
-                    {...register('username', {
-                      required: 'Username is required',
-                      minLength: {
-                        value: 3,
-                        message: 'Must be at least 3 characters',
-                      },
-                      maxLength: {
-                        value: 20,
-                        message: 'Must be less than 20 characters',
-                      },
-                      pattern: {
-                        value: /^[a-zA-Z0-9_]+$/,
-                        message: 'Only letters, numbers, and underscores allowed',
-                      },
-                    })}
-                  />
-                </div>
-                {errors.username && (
-                  <span className="form-error">{errors.username.message}</span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="email" className="form-label">
-                  Email Address
-                </label>
-                <div className="form-input-container">
-                  <Mail className="form-input-icon" size={20} />
-                  <input
-                    id="email"
-                    type="email"
-                    className={`form-input ${errors.email ? 'form-input--error' : ''}`}
-                    placeholder="john@example.com"
-                    autoComplete="email"
-                    {...register('email', {
-                      required: 'Email is required',
-                      pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                        message: 'Invalid email address',
-                      },
-                    })}
-                  />
-                </div>
-                {errors.email && (
-                  <span className="form-error">{errors.email.message}</span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="password" className="form-label">
-                  Password
-                </label>
-                <div className="form-input-container">
-                  <Lock className="form-input-icon" size={20} />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    className={`form-input ${errors.password ? 'form-input--error' : ''}`}
-                    placeholder="Enter your password"
-                    autoComplete="new-password"
-                    {...register('password', {
-                      required: 'Password is required',
-                      minLength: {
-                        value: 6,
-                        message: 'Password must be at least 6 characters',
-                      },
-                      pattern: {
-                        value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                        message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
-                      },
-                    })}
-                  />
+              <div className="signup-form__actions">
+                {step > 1 && (
                   <button
                     type="button"
-                    className="form-input-action"
-                    onClick={togglePasswordVisibility}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="signup-button signup-button--outline"
+                    onClick={goToPreviousStep}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    Back
                   </button>
-                </div>
-                {errors.password && (
-                  <span className="form-error">{errors.password.message}</span>
                 )}
+                
+                <button
+                  type="submit"
+                  className="signup-button"
+                  disabled={loading || isSubmitting || (step === 3 && !acceptedTerms)}
+                >
+                  {loading || isSubmitting ? (
+                    <LoadingSpinner size="small" color="white" />
+                  ) : step === 3 ? (
+                    'Create Account'
+                  ) : (
+                    'Continue'
+                  )}
+                </button>
               </div>
-
-              <div className="form-group">
-                <label htmlFor="confirmPassword" className="form-label">
-                  Confirm Password
-                </label>
-                <div className="form-input-container">
-                  <Lock className="form-input-icon" size={20} />
-                  <input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    className={`form-input ${errors.confirmPassword ? 'form-input--error' : ''}`}
-                    placeholder="Confirm your password"
-                    autoComplete="new-password"
-                    {...register('confirmPassword', {
-                      required: 'Please confirm your password',
-                      validate: (value) => 
-                        value === password || 'Passwords do not match',
-                    })}
-                  />
-                  <button
-                    type="button"
-                    className="form-input-action"
-                    onClick={toggleConfirmPasswordVisibility}
-                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-                {errors.confirmPassword && (
-                  <span className="form-error">{errors.confirmPassword.message}</span>
-                )}
-              </div>
-
-              <div className="form-agreement">
-                <label className="checkbox-container">
-                  <input
-                    type="checkbox"
-                    className="checkbox-input"
-                    {...register('agreeToTerms', {
-                      required: 'You must agree to the terms and conditions',
-                    })}
-                  />
-                  <span className="checkbox-checkmark"></span>
-                  <span className="checkbox-label">
-                    I agree to the{' '}
-                    <Link to="/terms" className="agreement-link">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="agreement-link">
-                      Privacy Policy
-                    </Link>
-                  </span>
-                </label>
-                {errors.agreeToTerms && (
-                  <span className="form-error">{errors.agreeToTerms.message}</span>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                className="signup-button"
-                disabled={loading || isSubmitting}
-              >
-                {loading || isSubmitting ? (
-                  <LoadingSpinner size="small" color="white" />
-                ) : (
-                  'Create Account'
-                )}
-              </button>
             </form>
 
             <div className="signup-footer">
@@ -346,43 +521,6 @@ const Signup = () => {
                   Sign in
                 </Link>
               </p>
-            </div>
-
-            <div className="signup-divider">
-              <span className="signup-divider__text">Or sign up with</span>
-            </div>
-
-            <div className="social-signup">
-              <button
-                type="button"
-                className="social-signup-button"
-                onClick={() => {
-                  // TODO: Implement Google OAuth
-                  console.log('Google signup clicked');
-                }}
-              >
-                <svg className="social-icon" viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Google
-              </button>
-              
-              <button
-                type="button"
-                className="social-signup-button"
-                onClick={() => {
-                  // TODO: Implement GitHub OAuth
-                  console.log('GitHub signup clicked');
-                }}
-              >
-                <svg className="social-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-                GitHub
-              </button>
             </div>
           </div>
         </div>

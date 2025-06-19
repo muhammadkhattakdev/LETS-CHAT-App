@@ -14,9 +14,9 @@ import {
   Video,
   Music
 } from 'lucide-react';
-import { useAuth } from '../../../../../commonComponents/authContext/authContext';
-import { useChat } from '../../../../../commonComponents/chatContext/chatContext';
 import './style.css';
+import { useAuth } from '../../../../../../commonComponents/authContext/authContext';
+import { useChat } from '../../../../../../commonComponents/chatContext/chatContext';
 
 const MessageItem = ({ 
   message, 

@@ -5,9 +5,9 @@ import ProtectedRoute from "../protectedRoute/protectedRoute";
 import Login from "../../pages/login/login";
 import Signup from "../../pages/signup/signup";
 import Homepage from "../../pages/homepage/homepage";
-import Profile from "../../pages/profile/profile";
 import Settings from "../../pages/settings/settings";
 import NotFound from "../../pages/notFound/notFound";
+import Profile from "../../pages/profilePage/profile";
 
 const Router = () => {
   return (

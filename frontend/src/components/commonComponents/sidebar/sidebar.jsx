@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  Search, 
-  MessageSquarePlus, 
-  Settings, 
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  Search,
+  MessageSquarePlus,
+  Settings,
   MoreVertical,
   Users,
   UserPlus,
@@ -12,33 +12,33 @@ import {
   Bell,
   BellOff,
   Pin,
-  Archive
-} from 'lucide-react';
-import { useAuth } from '../authContext/authContext';
-import { useChat } from '../chatContext/chatContext';
-import { useSocket } from '../socketContext/socketContext';
-import ChatListItem from './sidebarComponents/chatListItem/chatListItem';
-import UserSearchModal from './sidebarComponents/userSearchModal/userSearchModal';
-import ProfileModal from './sidebarComponents/profileModal/profileModal';
-import './style.css';
-import LoadingSpinner from '../loadingSpinner/loadingSpinner';
+  Archive,
+} from "lucide-react";
+import { useAuth } from "../authContext/authContext";
+import { useChat } from "../chatContext/chatContext";
+import { useSocket } from "../socketContext/socketContext";
+import ChatListItem from "./sidebarComponents/chatListItem/chatListItem";
+import UserSearchModal from "./sidebarComponents/userSearchModel/userSearchModal";
+import ProfileModal from "./sidebarComponents/profileModal/profileModal";
+import "./style.css";
+import LoadingSpinner from "../loadingSpinner/loadingSpinner";
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const { chatId } = useParams();
   const { user, logout, userDisplayName, userInitials } = useAuth();
-  const { 
-    chats, 
-    searchResults, 
-    isSearching, 
-    searchUsers, 
+  const {
+    chats,
+    searchResults,
+    isSearching,
+    searchUsers,
     createPrivateChat,
     setCurrentChat,
-    getTotalUnreadCount 
+    getTotalUnreadCount,
   } = useChat();
   const { isUserOnline } = useSocket();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -55,8 +55,8 @@ const Sidebar = () => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Handle search input changes
@@ -73,7 +73,7 @@ const Sidebar = () => {
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    
+
     if (value.trim()) {
       setShowSearchModal(true);
     } else {
@@ -84,7 +84,7 @@ const Sidebar = () => {
   const handleChatSelect = (chat) => {
     setCurrentChat(chat);
     navigate(`/chat/${chat.id}`);
-    setSearchQuery('');
+    setSearchQuery("");
     setShowSearchModal(false);
   };
 
@@ -96,25 +96,32 @@ const Sidebar = () => {
         navigate(`/chat/${newChat.id}`);
       }
     } catch (error) {
-      console.error('Failed to create chat:', error);
+      console.error("Failed to create chat:", error);
     }
-    
-    setSearchQuery('');
+
+    setSearchQuery("");
     setShowSearchModal(false);
   };
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const clearSearch = () => {
-    setSearchQuery('');
+    setSearchQuery("");
     setShowSearchModal(false);
     searchInputRef.current?.focus();
   };
 
-  const filteredChats = chats.filter(chat => 
+  const handleSearchFocus = () => {
+    console.log("Search Input focused");
+  };
+
+  const handleSearchBlur = () => {
+    console.log("Search Input focused");
+  };
+  const filteredChats = chats.filter((chat) =>
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -125,28 +132,30 @@ const Sidebar = () => {
       {/* Header */}
       <div className="sidebar__header">
         <div className="sidebar__user" ref={userMenuRef}>
-          <div 
+          <div
             className="sidebar__user-info"
             onClick={() => setShowUserMenu(!showUserMenu)}
           >
             <div className="sidebar__avatar">
               {user?.avatar ? (
-                <img 
-                  src={user.avatar} 
+                <img
+                  src={user.avatar}
                   alt={userDisplayName}
                   className="sidebar__avatar-image"
                 />
               ) : (
-                <div className="sidebar__avatar-fallback">
-                  {userInitials}
-                </div>
+                <div className="sidebar__avatar-fallback">{userInitials}</div>
               )}
-              <div className={`sidebar__status-indicator ${isUserOnline(user?.id) ? 'online' : 'offline'}`} />
+              <div
+                className={`sidebar__status-indicator ${
+                  isUserOnline(user?.id) ? "online" : "offline"
+                }`}
+              />
             </div>
             <div className="sidebar__user-details">
               <h2 className="sidebar__user-name">{userDisplayName}</h2>
               <p className="sidebar__user-status">
-                {isUserOnline(user?.id) ? 'Online' : 'Offline'}
+                {isUserOnline(user?.id) ? "Online" : "Offline"}
               </p>
             </div>
             <MoreVertical size={20} className="sidebar__menu-icon" />
@@ -155,7 +164,7 @@ const Sidebar = () => {
           {/* User Menu Dropdown */}
           {showUserMenu && (
             <div className="sidebar__user-menu">
-              <button 
+              <button
                 className="sidebar__menu-item"
                 onClick={() => {
                   setShowProfileModal(true);
@@ -165,10 +174,10 @@ const Sidebar = () => {
                 <User size={16} />
                 <span>Profile</span>
               </button>
-              <button 
+              <button
                 className="sidebar__menu-item"
                 onClick={() => {
-                  navigate('/settings');
+                  navigate("/settings");
                   setShowUserMenu(false);
                 }}
               >
@@ -176,7 +185,7 @@ const Sidebar = () => {
                 <span>Settings</span>
               </button>
               <div className="sidebar__menu-divider" />
-              <button 
+              <button
                 className="sidebar__menu-item sidebar__menu-item--danger"
                 onClick={() => {
                   handleLogout();
@@ -192,16 +201,16 @@ const Sidebar = () => {
 
         {/* Action Buttons */}
         <div className="sidebar__actions">
-          <button 
+          <button
             className="sidebar__action-btn"
             onClick={() => setShowSearchModal(true)}
             title="New Chat"
           >
             <MessageSquarePlus size={20} />
           </button>
-          <button 
+          <button
             className="sidebar__action-btn"
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate("/settings")}
             title="Settings"
           >
             <Settings size={20} />
@@ -224,7 +233,7 @@ const Sidebar = () => {
             className="sidebar__search-input"
           />
           {searchQuery && (
-            <button 
+            <button
               className="sidebar__search-clear"
               onClick={clearSearch}
               type="button"
@@ -244,7 +253,7 @@ const Sidebar = () => {
             <p className="sidebar__empty-description">
               Start a conversation by searching for users or creating a group
             </p>
-            <button 
+            <button
               className="sidebar__empty-button"
               onClick={() => setShowSearchModal(true)}
             >
@@ -267,7 +276,7 @@ const Sidebar = () => {
       {/* Unread Count Badge */}
       {totalUnreadCount > 0 && (
         <div className="sidebar__unread-badge">
-          {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+          {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
         </div>
       )}
 
@@ -280,16 +289,14 @@ const Sidebar = () => {
           onUserSelect={handleUserSelect}
           onClose={() => {
             setShowSearchModal(false);
-            setSearchQuery('');
+            setSearchQuery("");
           }}
         />
       )}
 
       {/* Profile Modal */}
       {showProfileModal && (
-        <ProfileModal
-          onClose={() => setShowProfileModal(false)}
-        />
+        <ProfileModal onClose={() => setShowProfileModal(false)} />
       )}
     </div>
   );

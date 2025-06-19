@@ -18,88 +18,121 @@ export const SocketProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [typingUsers, setTypingUsers] = useState(new Map()); // chatId -> Set of typing users
   const socketRef = useRef(null);
+  const connectionTimeoutRef = useRef(null);
+  const isConnectingRef = useRef(false);
 
   // Socket server URL
   const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
-  // Initialize socket connection
+  // Initialize socket connection with rate limiting protection
   useEffect(() => {
+    // Prevent multiple simultaneous connection attempts
+    if (isConnectingRef.current) {
+      return;
+    }
+
     if (isAuthenticated && user && !socketRef.current) {
       const token = request.utils.getAccessToken();
 
       if (!token) return;
 
-      console.log("Connecting to socket server...");
+      // Add a small delay to prevent immediate connection after login
+      // This helps avoid rate limiting when multiple requests happen simultaneously
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (isConnectingRef.current) return;
+        
+        isConnectingRef.current = true;
+        console.log("Connecting to socket server...");
 
-      const newSocket = io(SOCKET_URL, {
-        auth: {
-          token: token,
-        },
-        autoConnect: true,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-      });
-
-      // Connection event handlers
-      newSocket.on("connect", () => {
-        console.log("Connected to socket server");
-        setIsConnected(true);
-      });
-
-      newSocket.on("disconnect", (reason) => {
-        console.log("Disconnected from socket server:", reason);
-        setIsConnected(false);
-      });
-
-      newSocket.on("connect_error", (error) => {
-        console.error("Socket connection error:", error);
-        setIsConnected(false);
-      });
-
-      // User status events
-      newSocket.on("userOnline", (data) => {
-        setOnlineUsers((prev) => new Set([...prev, data.userId]));
-      });
-
-      newSocket.on("userOffline", (data) => {
-        setOnlineUsers((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(data.userId);
-          return newSet;
+        const newSocket = io(SOCKET_URL, {
+          auth: {
+            token: token,
+          },
+          autoConnect: true,
+          reconnection: true,
+          reconnectionAttempts: 3, // Reduced from 5 to prevent too many retry attempts
+          reconnectionDelay: 2000, // Increased delay between reconnection attempts
+          reconnectionDelayMax: 5000,
+          maxReconnectionAttempts: 3,
+          timeout: 10000, // Add connection timeout
         });
-      });
 
-      // Typing events
-      newSocket.on("userTyping", (data) => {
-        const { chatId, userId, username, isTyping } = data;
-
-        setTypingUsers((prev) => {
-          const newMap = new Map(prev);
-          const chatTypingUsers = newMap.get(chatId) || new Set();
-
-          if (isTyping) {
-            chatTypingUsers.add({ userId, username });
-          } else {
-            chatTypingUsers.delete({ userId, username });
-          }
-
-          if (chatTypingUsers.size === 0) {
-            newMap.delete(chatId);
-          } else {
-            newMap.set(chatId, chatTypingUsers);
-          }
-
-          return newMap;
+        // Connection event handlers
+        newSocket.on("connect", () => {
+          console.log("Connected to socket server");
+          setIsConnected(true);
+          isConnectingRef.current = false;
         });
-      });
 
-      socketRef.current = newSocket;
-      setSocket(newSocket);
+        newSocket.on("disconnect", (reason) => {
+          console.log("Disconnected from socket server:", reason);
+          setIsConnected(false);
+          isConnectingRef.current = false;
+        });
+
+        newSocket.on("connect_error", (error) => {
+          console.error("Socket connection error:", error);
+          setIsConnected(false);
+          isConnectingRef.current = false;
+          
+          // If connection fails due to rate limiting, increase delay for next attempt
+          if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+            console.log("Rate limited - delaying reconnection");
+            newSocket.io.opts.reconnectionDelay = Math.min(
+              newSocket.io.opts.reconnectionDelay * 2, 
+              30000
+            );
+          }
+        });
+
+        // User status events
+        newSocket.on("userOnline", (data) => {
+          setOnlineUsers((prev) => new Set([...prev, data.userId]));
+        });
+
+        newSocket.on("userOffline", (data) => {
+          setOnlineUsers((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(data.userId);
+            return newSet;
+          });
+        });
+
+        // Typing events
+        newSocket.on("userTyping", (data) => {
+          const { chatId, userId, username, isTyping } = data;
+
+          setTypingUsers((prev) => {
+            const newMap = new Map(prev);
+            const chatTypingUsers = newMap.get(chatId) || new Set();
+
+            if (isTyping) {
+              chatTypingUsers.add({ userId, username });
+            } else {
+              chatTypingUsers.delete({ userId, username });
+            }
+
+            if (chatTypingUsers.size === 0) {
+              newMap.delete(chatId);
+            } else {
+              newMap.set(chatId, chatTypingUsers);
+            }
+
+            return newMap;
+          });
+        });
+
+        socketRef.current = newSocket;
+        setSocket(newSocket);
+      }, 1000); // 1 second delay to prevent immediate connection after login
     }
 
     // Cleanup on unmount or user change
     return () => {
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+      }
+      
       if (socketRef.current) {
         console.log("Disconnecting socket...");
         socketRef.current.disconnect();
@@ -108,55 +141,56 @@ export const SocketProvider = ({ children }) => {
         setIsConnected(false);
         setOnlineUsers(new Set());
         setTypingUsers(new Map());
+        isConnectingRef.current = false;
       }
     };
-  }, [isAuthenticated, user, SOCKET_URL]);
+  }, [isAuthenticated, user?.id, SOCKET_URL]); // Use user.id instead of user object to prevent unnecessary reconnections
 
-  // Socket event handlers
+  // Socket event handlers with error protection
   const joinChat = (chatId) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("joinChat", chatId);
     }
   };
 
   const leaveChat = (chatId) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("leaveChat", chatId);
     }
   };
 
   const sendMessage = (messageData) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("sendMessage", messageData);
     }
   };
 
   const sendTyping = (chatId, isTyping) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("typing", { chatId, isTyping });
     }
   };
 
   const markAsRead = (messageId, chatId) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("markAsRead", { messageId, chatId });
     }
   };
 
   const editMessage = (messageId, newContent) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("editMessage", { messageId, newContent });
     }
   };
 
   const deleteMessage = (messageId) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("deleteMessage", { messageId });
     }
   };
 
   const updateStatus = (status) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit("updateStatus", { status });
     }
   };

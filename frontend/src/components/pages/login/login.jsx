@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, MessageCircle, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../commonComponents/authContext/authContext';
 import LoadingSpinner from '../../commonComponents/loadingSpinner/loadingSpinner';
-import './style.css';
+import "./style.css";
+
 
 const Login = () => {
   const navigate = useNavigate();

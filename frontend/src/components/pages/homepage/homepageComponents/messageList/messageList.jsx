@@ -21,14 +21,12 @@ const MessageList = ({ messages = [], currentUserId, chat }) => {
     rootMargin: '100px 0px 0px 0px',
   });
 
-  // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages.length]);
 
-  // Load more messages when scrolling to top
   useEffect(() => {
     if (topInView && hasMoreMessages && !isLoadingMore && messages.length > 0) {
       loadMoreMessages();
