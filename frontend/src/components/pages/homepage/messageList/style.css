@@ -1,0 +1,232 @@
+/* Message List Styles */
+.message-list {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+  background-color: var(--bg-chat);
+  position: relative;
+}
+
+.message-list--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Empty State */
+.message-list__empty-state {
+  text-align: center;
+  padding: var(--spacing-5xl) var(--spacing-lg);
+  max-width: 400px;
+}
+
+.message-list__empty-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.5;
+}
+
+.message-list__empty-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.message-list__empty-description {
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
+  margin: 0;
+}
+
+/* Loading Trigger */
+.message-list__load-trigger {
+  padding: var(--spacing-md) 0;
+}
+
+.message-list__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Content */
+.message-list__content {
+  padding: var(--spacing-lg) 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.message-list__date-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.message-list__date-group:last-child {
+  margin-bottom: 0;
+}
+
+.message-list__messages {
+  padding: 0 var(--spacing-lg);
+}
+
+.message-list__bottom-anchor {
+  height: 1px;
+  width: 1px;
+}
+
+/* Custom Scrollbar */
+.message-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.message-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.message-list::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 4px;
+}
+
+.message-list::-webkit-scrollbar-thumb:hover {
+  background: var(--border-dark);
+}
+
+/* Smooth scrolling behavior */
+.message-list {
+  scroll-behavior: smooth;
+}
+
+/* Message spacing */
+.message-list__messages > * + * {
+  margin-top: var(--spacing-sm);
+}
+
+/* Grouped message spacing */
+.message-list__messages > .message-item--grouped-with-previous {
+  margin-top: var(--spacing-xs);
+}
+
+/* Animation for new messages */
+.message-item {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .message-list__content {
+    padding: var(--spacing-md) 0;
+  }
+
+  .message-list__messages {
+    padding: 0 var(--spacing-md);
+  }
+
+  .message-list__empty-state {
+    padding: var(--spacing-3xl) var(--spacing-md);
+  }
+
+  .message-list__empty-icon {
+    font-size: 3rem;
+  }
+
+  .message-list__empty-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .message-list__empty-description {
+    font-size: var(--font-size-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .message-list__content {
+    padding: var(--spacing-sm) 0;
+  }
+
+  .message-list__messages {
+    padding: 0 var(--spacing-sm);
+  }
+
+  .message-list__empty-state {
+    padding: var(--spacing-2xl) var(--spacing-sm);
+  }
+
+  .message-list__loading {
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .message-list {
+    scroll-behavior: auto;
+  }
+
+  .message-item {
+    animation: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .message-list {
+    background-color: #ffffff;
+  }
+
+  .message-list::-webkit-scrollbar-thumb {
+    background: #000000;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .message-list {
+    background-color: #1e1e1e;
+  }
+
+  .message-list::-webkit-scrollbar-thumb {
+    background: #404040;
+  }
+
+  .message-list::-webkit-scrollbar-thumb:hover {
+    background: #606060;
+  }
+}
+
+/* Print styles */
+@media print {
+  .message-list {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  .message-list__loading {
+    display: none;
+  }
+
+  .message-item {
+    animation: none;
+    break-inside: avoid;
+  }
+}

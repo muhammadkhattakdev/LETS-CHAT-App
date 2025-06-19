@@ -1,0 +1,89 @@
+/* Date Divider Styles */
+.date-divider {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-lg) 0;
+    padding: 0 var(--spacing-lg);
+  }
+  
+  .date-divider__line {
+    flex: 1;
+    height: 1px;
+    background-color: var(--border-medium);
+  }
+  
+  .date-divider__text {
+    padding: 0 var(--spacing-md);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-tertiary);
+    background-color: var(--bg-chat);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .date-divider {
+      margin: var(--spacing-md) 0;
+      padding: 0 var(--spacing-md);
+    }
+  
+    .date-divider__text {
+      font-size: 10px;
+      padding: 0 var(--spacing-sm);
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .date-divider {
+      margin: var(--spacing-sm) 0;
+      padding: 0 var(--spacing-sm);
+    }
+  
+    .date-divider__text {
+      padding: 0 var(--spacing-xs);
+    }
+  }
+  
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .date-divider__line {
+      background-color: #404040;
+    }
+  
+    .date-divider__text {
+      background-color: #1e1e1e;
+    }
+  }
+  
+  /* High contrast mode */
+  @media (prefers-contrast: high) {
+    .date-divider__line {
+      background-color: #000000;
+      height: 2px;
+    }
+  
+    .date-divider__text {
+      color: #000000;
+      font-weight: var(--font-weight-bold);
+    }
+  }
+  
+  /* Print styles */
+  @media print {
+    .date-divider {
+      break-after: avoid;
+      margin: var(--spacing-md) 0;
+    }
+  
+    .date-divider__line {
+      background-color: #000000 !important;
+    }
+  
+    .date-divider__text {
+      color: #000000 !important;
+      background-color: white !important;
+    }
+  }
