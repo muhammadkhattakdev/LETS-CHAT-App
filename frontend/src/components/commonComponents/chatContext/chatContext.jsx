@@ -33,6 +33,7 @@ const CHAT_ACTIONS = {
   REMOVE_CHAT: "REMOVE_CHAT",
   SET_CURRENT_CHAT: "SET_CURRENT_CHAT",
   SET_MESSAGES: "SET_MESSAGES",
+  PREPEND_MESSAGES: "PREPEND_MESSAGES", // New action for pagination
   ADD_MESSAGE: "ADD_MESSAGE",
   UPDATE_MESSAGE: "UPDATE_MESSAGE",
   REMOVE_MESSAGE: "REMOVE_MESSAGE",
@@ -41,6 +42,26 @@ const CHAT_ACTIONS = {
   SET_SEARCH_RESULTS: "SET_SEARCH_RESULTS",
   SET_SEARCHING: "SET_SEARCHING",
   CLEAR_SEARCH: "CLEAR_SEARCH",
+};
+
+// Helper function to validate message object
+const isValidMessage = (message) => {
+  return (
+    message &&
+    message.id &&
+    message.createdAt &&
+    message.sender &&
+    message.sender.id
+  );
+};
+
+// Helper function to filter and sort messages
+const processMessages = (messages) => {
+  if (!Array.isArray(messages)) return [];
+  
+  return messages
+    .filter(isValidMessage)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // Ascending order for display
 };
 
 // Reducer function
@@ -91,16 +112,35 @@ const chatReducer = (state, action) => {
       return { ...state, currentChat: action.payload };
 
     case CHAT_ACTIONS.SET_MESSAGES:
+      // Backend returns messages in desc order (newest first), reverse for display
+      const processedMessages = processMessages(action.payload.messages.reverse());
       return {
         ...state,
         messages: {
           ...state.messages,
-          [action.payload.chatId]: action.payload.messages,
+          [action.payload.chatId]: processedMessages,
+        },
+      };
+
+    case CHAT_ACTIONS.PREPEND_MESSAGES:
+      // For pagination - add older messages to the beginning
+      const existingMessages = state.messages[action.payload.chatId] || [];
+      const olderMessages = processMessages(action.payload.messages.reverse());
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [action.payload.chatId]: [...olderMessages, ...existingMessages],
         },
       };
 
     case CHAT_ACTIONS.ADD_MESSAGE:
       const { chatId, message } = action.payload;
+      if (!isValidMessage(message)) {
+        console.warn('Invalid message received:', message);
+        return state;
+      }
+      
       const existingMessages = state.messages[chatId] || [];
       return {
         ...state,
@@ -192,6 +232,13 @@ export const ChatProvider = ({ children }) => {
     unsubscribers.push(
       addEventListener("newMessage", (data) => {
         const { message, chatId } = data;
+        
+        // Validate message before adding
+        if (!isValidMessage(message)) {
+          console.warn('Invalid message received from socket:', message);
+          return;
+        }
+
         dispatch({
           type: CHAT_ACTIONS.ADD_MESSAGE,
           payload: { chatId, message },
@@ -344,17 +391,29 @@ export const ChatProvider = ({ children }) => {
 
   // Load messages for a chat
   const loadMessages = useCallback(async (chatId, page = 1) => {
-    if (!chatId) return;
+    if (!chatId) return [];
 
     try {
       const result = await request.message.getChatMessages(chatId, page);
 
       if (result.success) {
-        dispatch({
-          type: CHAT_ACTIONS.SET_MESSAGES,
-          payload: { chatId, messages: result.data.data.messages },
-        });
-        return result.data.data.messages;
+        const messages = result.data.data.messages || [];
+        
+        if (page === 1) {
+          // First page - set messages
+          dispatch({
+            type: CHAT_ACTIONS.SET_MESSAGES,
+            payload: { chatId, messages },
+          });
+        } else {
+          // Subsequent pages - prepend older messages
+          dispatch({
+            type: CHAT_ACTIONS.PREPEND_MESSAGES,
+            payload: { chatId, messages },
+          });
+        }
+        
+        return messages;
       }
     } catch (error) {
       console.error("Failed to load messages:", error);
@@ -375,8 +434,8 @@ export const ChatProvider = ({ children }) => {
         }
 
         // Load messages if not already loaded
-        if (!state.messages[chat.id]) {
-          loadMessages(chat.id);
+        if (!state.messages[chat.id] || state.messages[chat.id].length === 0) {
+          loadMessages(chat.id, 1);
         }
 
         // Mark all messages as read
@@ -488,6 +547,8 @@ export const ChatProvider = ({ children }) => {
 
   // Search users
   const searchUsers = useCallback(async (query) => {
+    console.log("Searching for:", query); // Debug log
+
     if (!query.trim()) {
       dispatch({ type: CHAT_ACTIONS.CLEAR_SEARCH });
       return;
@@ -497,16 +558,20 @@ export const ChatProvider = ({ children }) => {
 
     try {
       const result = await request.user.searchUsers(query);
+      console.log("Search result:", result); // Debug log
 
       if (result.success) {
+        console.log("Users found:", result.data.data.users); // Debug log
         dispatch({
           type: CHAT_ACTIONS.SET_SEARCH_RESULTS,
           payload: result.data.data.users,
         });
       } else {
+        console.log("Search failed:", result.error); // Debug log
         dispatch({ type: CHAT_ACTIONS.SET_SEARCH_RESULTS, payload: [] });
       }
     } catch (error) {
+      console.error("Search error:", error); // Debug log
       dispatch({ type: CHAT_ACTIONS.SET_SEARCH_RESULTS, payload: [] });
     }
   }, []);

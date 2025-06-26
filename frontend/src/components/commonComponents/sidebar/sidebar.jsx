@@ -115,12 +115,15 @@ const Sidebar = () => {
   };
 
   const handleSearchFocus = () => {
+    setSearchFocused(true);
     console.log("Search Input focused");
   };
 
   const handleSearchBlur = () => {
-    console.log("Search Input focused");
+    setSearchFocused(false);
+    console.log("Search Input blurred");
   };
+
   const filteredChats = chats.filter((chat) =>
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -287,6 +290,7 @@ const Sidebar = () => {
           searchResults={searchResults}
           isSearching={isSearching}
           onUserSelect={handleUserSelect}
+          onSearchUsers={searchUsers} // Pass the search function
           onClose={() => {
             setShowSearchModal(false);
             setSearchQuery("");

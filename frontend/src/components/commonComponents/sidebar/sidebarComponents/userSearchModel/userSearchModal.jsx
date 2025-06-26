@@ -9,6 +9,7 @@ const UserSearchModal = ({
   searchResults,
   isSearching,
   onUserSelect,
+  onSearchUsers, // New prop for search function
   onClose,
 }) => {
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery || "");
@@ -48,6 +49,17 @@ const UserSearchModal = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
+
+  // Handle search with debouncing
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (localSearchQuery.trim() && onSearchUsers) {
+        onSearchUsers(localSearchQuery.trim());
+      }
+    }, 300);
+
+    return () => clearTimeout(delayedSearch);
+  }, [localSearchQuery, onSearchUsers]);
 
   const handleUserClick = (user) => {
     if (showGroupForm) {
@@ -92,6 +104,14 @@ const UserSearchModal = ({
     return selectedUsers.some((u) => u.id === user.id);
   };
 
+  const handleLocalSearchChange = (e) => {
+    setLocalSearchQuery(e.target.value);
+  };
+
+  const clearLocalSearch = () => {
+    setLocalSearchQuery("");
+  };
+
   return (
     <div className="user-search-modal-overlay">
       <div className="user-search-modal" ref={modalRef}>
@@ -129,13 +149,13 @@ const UserSearchModal = ({
                 showGroupForm ? "Search people to add..." : "Search people..."
               }
               value={localSearchQuery}
-              onChange={(e) => setLocalSearchQuery(e.target.value)}
+              onChange={handleLocalSearchChange}
               className="user-search-modal__search-input"
             />
             {localSearchQuery && (
               <button
                 className="user-search-modal__search-clear"
-                onClick={() => setLocalSearchQuery("")}
+                onClick={clearLocalSearch}
               >
                 <X size={16} />
               </button>

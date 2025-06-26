@@ -35,6 +35,8 @@ const corsOptions = {
 const io = new Server(server, {
   cors: corsOptions,
   pingTimeout: 60000,
+  pingInterval: 25000, // Heartbeat interval
+  transports: ['websocket', 'polling'], // Prefer websocket
 });
 
 // Middleware
@@ -46,24 +48,68 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/', limiter);
+// Enhanced Rate limiting with user-based limits for authenticated routes
+const createUserBasedLimiter = (windowMs, maxRequests, message) => {
+  return rateLimit({
+    windowMs,
+    max: (req) => {
+      // Higher limits for authenticated users (user-based)
+      if (req.user) {
+        return maxRequests * 3; // 3x higher limit for authenticated users
+      }
+      // Lower limits for non-authenticated requests (IP-based)
+      return maxRequests;
+    },
+    keyGenerator: (req) => {
+      // Use user ID for authenticated requests, IP for others
+      return req.user ? `user:${req.user.id}` : `ip:${req.ip}`;
+    },
+    message: {
+      status: 'error',
+      message: message
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Skip rate limiting for socket.io handshake (handled separately)
+    skip: (req) => req.url.startsWith('/socket.io/'),
+  });
+};
 
-// Auth rate limiting (stricter)
+// General API rate limiting - more lenient
+const generalLimiter = createUserBasedLimiter(
+  15 * 60 * 1000, // 15 minutes
+  20000000000, // 200 requests per IP, 600 per authenticated user
+  'Too many requests, please try again later.'
+);
+
+// Auth rate limiting - separate limits for login/register
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
-  message: 'Too many authentication attempts, please try again later.',
+  max: 100005, // Allow more auth attempts
+  message: {
+    status: 'error',
+    message: 'Too many authentication attempts, please try again later.'
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+const socketLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000000000000, // 5 minutes
+  max: 50000000000, // Allow many socket connections
+  keyGenerator: (req) => {
+
+    const token = req.query.token || req.headers.authorization?.split(' ')[1];
+    return token ? `socket:${token.slice(-10)}` : `socket-ip:${req.ip}`;
+  },
+  message: 'Too many socket connections, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiters
+app.use('/api/', generalLimiter);
+app.use('/socket.io/', socketLimiter);
 
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
@@ -77,6 +123,7 @@ app.get('/api/health', (req, res) => {
     status: 'success',
     message: 'Server is running',
     timestamp: new Date().toISOString(),
+    connections: io.engine.clientsCount,
   });
 });
 

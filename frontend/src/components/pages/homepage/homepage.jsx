@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { MessageCircle, Users, Smile } from 'lucide-react';
 import { useChat } from '../../commonComponents/chatContext/chatContext';
@@ -16,95 +16,55 @@ const Homepage = () => {
   const { 
     currentChat, 
     setCurrentChat, 
-    loadMessages, 
+    chats,
     getCurrentChatMessages,
     loading 
   } = useChat();
   
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const loadingChatIdRef = useRef(null);
-  const abortControllerRef = useRef(null);
+  const lastChatIdRef = useRef(null);
 
-  // Debounced loadMessages function to prevent multiple simultaneous calls
-  const debouncedLoadMessages = useCallback(async (chatId) => {
-    // Prevent multiple simultaneous loads for the same chat
-    if (loadingChatIdRef.current === chatId || !chatId) {
-      return;
-    }
-
-    // Cancel any previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-    loadingChatIdRef.current = chatId;
-    setMessagesLoading(true);
-
-    try {
-      // Add a small delay to prevent rapid successive calls
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Check if the request was aborted or chatId changed
-      if (abortControllerRef.current?.signal.aborted || loadingChatIdRef.current !== chatId) {
-        return;
-      }
-
-      console.log(`Loading messages for chat: ${chatId}`);
-      await loadMessages(chatId);
-      console.log(`Messages loaded successfully for chat: ${chatId}`);
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Failed to load messages:', error);
-      }
-    } finally {
-      // Only reset loading state if this is still the current request
-      if (loadingChatIdRef.current === chatId) {
-        setMessagesLoading(false);
-        loadingChatIdRef.current = null;
-      }
-    }
-  }, [loadMessages]);
-
-  // Load chat when chatId changes
+  // Handle chat selection when chatId changes
   useEffect(() => {
-    if (chatId && (!currentChat || currentChat.id !== chatId)) {
-      // Don't load if we're already loading this chat
-      if (loadingChatIdRef.current === chatId) {
-        return;
+    if (chatId && chatId !== lastChatIdRef.current) {
+      // Prevent setting the same chat multiple times
+      lastChatIdRef.current = chatId;
+      
+      // Find the chat from the chats list
+      const selectedChat = chats.find(chat => chat.id === chatId);
+      
+      if (selectedChat) {
+        // Check if it's a different chat than currently selected
+        if (!currentChat || currentChat.id !== chatId) {
+          console.log(`Selecting chat: ${chatId}`);
+          setMessagesLoading(true);
+          
+          // setCurrentChat will handle loading messages internally
+          setCurrentChat(selectedChat);
+          
+          // Reset loading state after a short delay
+          setTimeout(() => {
+            setMessagesLoading(false);
+          }, 1000);
+        }
+      } else {
+        // Chat not found in the list, might need to load chats first
+        console.warn(`Chat ${chatId} not found in chats list`);
       }
-
-      debouncedLoadMessages(chatId);
     } else if (!chatId) {
       // Clear current chat when no chatId
+      lastChatIdRef.current = null;
       setCurrentChat(null);
       setMessagesLoading(false);
-      loadingChatIdRef.current = null;
-      
-      // Cancel any ongoing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
     }
+  }, [chatId, chats, setCurrentChat, currentChat?.id]);
 
-    // Cleanup function
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [chatId, currentChat?.id, setCurrentChat, debouncedLoadMessages]);
-
-  // Cleanup on unmount
+  // Reset loading state when currentChat changes
   useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      loadingChatIdRef.current = null;
-    };
-  }, []);
+    if (currentChat && currentChat.id === chatId) {
+      setMessagesLoading(false);
+    }
+  }, [currentChat, chatId]);
 
   // Show loading spinner during initial load
   if (loading) {
